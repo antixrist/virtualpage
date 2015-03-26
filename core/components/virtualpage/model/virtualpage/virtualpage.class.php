@@ -23,6 +23,8 @@ class virtualpage {
 
 	public $fastrouterKey;
 
+  const DEFAULT_METHOD = 'GET';
+
 
 	/**
 	 * @param modX $modx
@@ -116,16 +118,58 @@ class virtualpage {
 		$this->routes = $this->generateRouteArray($ids);
 		$dispatcher = $this->getDispatcher();
 		//
-		$params = $dispatcher->dispatch($this->getMethod(), $this->getUri());
-		switch ($params[0]) {
-			case FastRoute\Dispatcher::METHOD_NOT_ALLOWED:
-				return $this->error();
-				break;
-			case FastRoute\Dispatcher::FOUND:
-				return $this->handle($params[1], $params[2]);
-				break;
-		}
 
+    $requestUri = $this->getUri();
+    $requestMethod = $this->getMethod();
+
+    if ($requestMethod === self::DEFAULT_METHOD) {
+
+      $params = $dispatcher->dispatch($requestMethod, $requestUri);
+      switch ($params[0]) {
+        case FastRoute\Dispatcher::FOUND:
+          return $this->handle($params[1], $params[2]);
+          break;
+      }
+
+      return true;
+
+    } else {
+
+      $defaultParams = $dispatcher->dispatch(self::DEFAULT_METHOD, $requestUri);
+      switch ($defaultParams[0]) {
+        case FastRoute\Dispatcher::FOUND:
+
+          $params = $dispatcher->dispatch($requestMethod, $requestUri);
+          switch ($params[0]) {
+            case FastRoute\Dispatcher::METHOD_NOT_ALLOWED:
+              return $this->error();
+              break;
+            case FastRoute\Dispatcher::FOUND:
+              return $this->handle($params[1], $params[2]);
+              break;
+            case FastRoute\Dispatcher::NOT_FOUND:
+              return $this->handle($defaultParams[1], $defaultParams[2]);
+              break;
+          }
+
+          break;
+        case FastRoute\Dispatcher::NOT_FOUND:
+
+          $params = $dispatcher->dispatch($requestMethod, $requestUri);
+          switch ($params[0]) {
+            case FastRoute\Dispatcher::METHOD_NOT_ALLOWED:
+              return $this->error();
+              break;
+            case FastRoute\Dispatcher::FOUND:
+              return $this->handle($params[1], $params[2]);
+              break;
+          }
+
+          break;
+      }
+
+    }
+    
 		return true;
 	}
 
